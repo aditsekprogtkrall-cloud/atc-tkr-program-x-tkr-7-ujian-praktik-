@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ujian DDTO TKR - SMK Karya Bahana Mandiri</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Pustaka untuk konversi ke PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        body { user-select: none; background: linear-gradient(135deg, #0f172a 0%, #020617 100%); }
+        .no-copy { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 flex items-center justify-center" oncontextmenu="return false;">
+
+    <div id="app" class="w-full max-w-2xl bg-slate-900/80 backdrop-blur-md p-8 rounded-2xl shadow-2xl border border-slate-700">
+        <!-- Login Section -->
+        <div id="login-section">
+            <h1 class="text-3xl font-bold text-blue-400 mb-6 text-center">Ujian DDTO - TKR</h1>
+            <div class="space-y-4">
+                <input type="text" id="nama" class="w-full p-3 bg-black/40 border border-slate-600 text-white rounded-lg focus:outline-none focus:border-blue-500" placeholder="Nama Lengkap">
+                <select id="kelas" class="w-full p-3 bg-black/40 border border-slate-600 text-white rounded-lg focus:outline-none focus:border-blue-500">
+                    <option value="" class="text-black">Pilih Kelas</option>
+                    <script>
+                        for(let i=1; i<=7; i++) document.write(`<option value="X TKR ${i}" class="text-black">X TKR ${i}</option>`);
+                    </script>
+                </select>
+                <input type="text" id="nomor" class="w-full p-3 bg-black/40 border border-slate-600 text-white rounded-lg focus:outline-none focus:border-blue-500" placeholder="Nomor Peserta (Manual)">
+                <button onclick="mulaiUjian()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-500 transition shadow-lg shadow-blue-900/20">Mulai Ujian</button>
+            </div>
+        </div>
+
+        <!-- Quiz Section -->
+        <div id="quiz-section" class="hidden text-slate-200">
+            <div id="soal-container" class="no-copy"></div>
+            <button onclick="selesaiUjian()" class="mt-6 w-full bg-emerald-600 text-white p-4 rounded-xl font-bold hover:bg-emerald-500 transition">Selesai & Lihat Skor</button>
+        </div>
+
+        <!-- Result Section (ID ini digunakan untuk target PDF) -->
+        <div id="result-section" class="hidden text-center text-slate-100 bg-white p-8 rounded-2xl text-slate-900">
+            <h2 class="text-3xl font-bold mb-6 text-blue-900">Laporan Hasil Ujian DDTO</h2>
+            <div class="text-left mb-6 border-b border-slate-300 pb-4">
+                <p class="py-1"><strong>Nama:</strong> <span id="res-nama"></span></p>
+                <p class="py-1"><strong>Kelas:</strong> <span id="res-kelas"></span></p>
+                <p class="py-1"><strong>No. Peserta:</strong> <span id="res-nomor"></span></p>
+            </div>
+            <div id="score-display" class="text-6xl font-black mb-4 text-blue-900"></div>
+            <p id="status" class="text-xl font-bold mb-8 uppercase tracking-widest"></p>
+        </div>
+        
+        <!-- Tombol Download di luar area yang dicetak -->
+        <div id="download-btn-area" class="hidden mt-6">
+            <button onclick="downloadPDF()" class="w-full bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-500 transition">Download Nilai (PDF)</button>
+        </div>
+    </div>
+
+    <script>
+        const soalList = [
+            {q: "Apa fungsi utama dari alat ukur Vernier Caliper (Jangka Sorong)?", o: ["Mengukur suhu", "Mengukur diameter luar/dalam & kedalaman", "Mengencangkan baut", "Memotong kabel", "Mengukur tegangan"], a: 1},
+            {q: "APD yang wajib digunakan untuk melindungi mata saat proses penggerindaan adalah...", o: ["Sarung tangan", "Safety Glasses (Kacamata)", "Wearpack", "Masker", "Sepatu Safety"], a: 1},
+            {q: "Komponen utama mesin yang berfungsi mengubah gerak lurus piston menjadi gerak putar adalah...", o: ["Piston", "Connecting Rod", "Crankshaft (Poros Engkol)", "Camshaft", "Flywheel"], a: 2},
+            {q: "Pada siklus 4 langkah, proses pembakaran terjadi pada langkah...", o: ["Hisap", "Kompresi", "Usaha", "Buang", "Sirkulasi"], a: 2},
+            {q: "Apa fungsi dari sistem pelumasan pada mesin?", o: ["Pendingin air", "Mengurangi gesekan & keausan", "Menambah tenaga", "Mengerem mesin", "Penerangan"], a: 1},
+            {q: "Alat ukur yang paling presisi untuk mengukur celah (clearance) adalah...", o: ["Mistar baja", "Feeler Gauge", "Jangka sorong", "Mikrometer", "Dial Gauge"], a: 1},
+            {q: "Apa fungsi dari sistem bahan bakar pada kendaraan?", o: ["Menyalurkan tenaga ke roda", "Menyediakan campuran udara & bahan bakar", "Pendingin mesin", "Sistem pengereman", "Peredam getaran"], a: 1},
+            {q: "Komponen yang berfungsi mengatur waktu buka-tutup katup adalah...", o: ["Piston", "Camshaft", "Crankshaft", "Oli pan", "Radiator"], a: 1},
+            {q: "Apa arti dari simbol K3 (Keselamatan dan Kesehatan Kerja) dalam bengkel?", o: ["Mempercepat kerja", "Mencegah kecelakaan kerja", "Menghemat alat", "Mempermudah servis", "Memperbagus bodi"], a: 1},
+            {q: "Komponen yang berfungsi sebagai pendingin mesin dengan media air adalah...", o: ["Radiator", "Filter udara", "Injektor", "Karburator", "Busi"], a: 0},
+            {q: "Fungsi dari baut (bolt) dan mur (nut) adalah...", o: ["Menghubungkan/mengikat komponen", "Pendingin", "Penyaring", "Sistem listrik", "Pengereman"], a: 0},
+            {q: "Apa yang dimaksud dengan proses penggerindaan?", o: ["Pemotongan logam", "Penghalusan permukaan/penajaman alat", "Pengelasan", "Pengecatan", "Pengereman"], a: 1},
+            {q: "Bagian mesin yang menampung oli mesin adalah...", o: ["Kepala Silinder", "Blok Silinder", "Oil Pan (Bak Oli)", "Flywheel", "Knalpot"], a: 2},
+            {q: "Sistem pengapian berfungsi untuk...", o: ["Mendinginkan mesin", "Memercikkan bunga api", "Memindahkan gigi", "Pengereman", "Pelumasan"], a: 1},
+            {q: "Apa fungsi dari kunci momen (torque wrench)?", o: ["Mengencangkan baut dengan ukuran tertentu", "Membuka baut", "Memotong kabel", "Mengukur tekanan", "Menjepit benda"], a: 0},
+            {q: "APD untuk melindungi kaki dari kejatuhan benda berat di bengkel adalah...", o: ["Sepatu Safety", "Sandal jepit", "Sepatu kain", "Kaos kaki", "Sarung tangan"], a: 0},
+            {q: "Sistem suspensi pada kendaraan berfungsi untuk...", o: ["Sistem penggerak", "Meredam getaran dari jalan", "Pendingin mesin", "Sistem rem", "Sistem pengapian"], a: 1},
+            {q: "Apa fungsi dari busi pada mesin bensin?", o: ["Memasukkan udara", "Memercikkan bunga api untuk pembakaran", "Penyaring oli", "Pelumas", "Pendingin"], a: 1},
+            {q: "Apa yang dilakukan jika terjadi kebakaran di bengkel akibat bahan bakar?", o: ["Siram air", "Gunakan APAR (Alat Pemadam Api Ringan)", "Tiup api", "Dibiarkan", "Tutup dengan kain biasa"], a: 1},
+            {q: "Komponen yang menghubungkan poros engkol dengan transmisi adalah...", o: ["Piston", "Radiator", "Kopling (Clutch)", "Busi", "Filter udara"], a: 2},
+            {q: "Apa fungsi dari poros nok (Camshaft)?", o: ["Mengatur siklus pembakaran", "Mengatur waktu buka-tutup katup", "Menggerakkan roda", "Sistem rem", "Penerangan"], a: 1},
+            {q: "Apa kegunaan dari obeng ketok?", o: ["Mengencangkan baut biasa", "Membuka baut yang keras/macet", "Memotong", "Mengelas", "Mengukur"], a: 1},
+            {q: "Sistem transmisi manual menggunakan komponen utama berupa...", o: ["Roda gigi (Gears)", "Belt", "Rantai", "Kabel", "Kompresor"], a: 0},
+            {q: "Apa fungsi utama dari sistem pengereman?", o: ["Mempercepat laju", "Mengurangi/menghentikan kecepatan", "Pendingin", "Sistem kelistrikan", "Sistem bahan bakar"], a: 1},
+            {q: "Tindakan pertama jika melihat teman terkena setrum listrik di bengkel adalah...", o: ["Memegang tangan teman", "Mematikan aliran listrik/saklar utama", "Lari keluar", "Memotret", "Menyiram air"], a: 1}
+        ];
+
+        let jawabanUser = new Array(25).fill(null);
+
+        function mulaiUjian() {
+            if(!document.getElementById('nama').value || !document.getElementById('nomor').value || !document.getElementById('kelas').value) return alert("Lengkapi data terlebih dahulu!");
+            document.getElementById('res-nama').innerText = document.getElementById('nama').value;
+            document.getElementById('res-kelas').innerText = document.getElementById('kelas').value;
+            document.getElementById('res-nomor').innerText = document.getElementById('nomor').value;
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('quiz-section').classList.remove('hidden');
+            renderSoal();
+        }
+
+        function renderSoal() {
+            const container = document.getElementById('soal-container');
+            soalList.forEach((s, idx) => {
+                container.innerHTML += `<div class="mb-6 p-4 border-l-4 border-blue-500 bg-slate-800 rounded-r-lg">
+                    <p class="font-bold mb-2 text-blue-300">${idx + 1}. ${s.q}</p>
+                    ${s.o.map((opt, i) => `<label class="block py-1 hover:text-blue-400 cursor-pointer"><input type="radio" name="q${idx}" value="${i}" onclick="jawabanUser[${idx}]=${i}" class="mr-2"> ${opt}</label>`).join('')}
+                </div>`;
+            });
+        }
+
+        function selesaiUjian() {
+            let score = jawabanUser.filter((ans, idx) => ans === soalList[idx].a).length * 4;
+            document.getElementById('quiz-section').classList.add('hidden');
+            document.getElementById('result-section').classList.remove('hidden');
+            document.getElementById('download-btn-area').classList.remove('hidden');
+            document.getElementById('score-display').innerText = score;
+            document.getElementById('status').innerText = score >= 75 ? "LULUS (KKM 75)" : "REMEDIAL";
+            document.getElementById('status').classList.add(score >= 75 ? "text-emerald-600" : "text-red-600");
+        }
+
+        function downloadPDF() {
+            const element = document.getElementById('result-section');
+            const opt = {
+                margin:       1,
+                filename:     `Hasil_Ujian_${document.getElementById('nama').value}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
+        }
+    </script>
+</body>
+</html>
